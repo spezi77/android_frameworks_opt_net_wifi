@@ -2347,11 +2347,11 @@ public class WifiStateMachine extends StateMachine {
         return mWifiNative.getNfcWpsConfigurationToken(netId);
     }
 
-    void enableBackgroundScan(boolean enable) {
+    boolean enableBackgroundScan(boolean enable) {
         if (enable) {
             mWifiConfigStore.enableAllNetworks();
         }
-        mWifiNative.enableBackgroundScan(enable);
+        return mWifiNative.enableBackgroundScan(enable);
     }
 
     /**
@@ -3232,11 +3232,9 @@ public class WifiStateMachine extends StateMachine {
                 + " startBackgroundScanIfNeeded:" + startBackgroundScanIfNeeded);
         if (startBackgroundScanIfNeeded) {
             if (mEnableBackgroundScan) {
-                if (!mWifiNative.enableBackgroundScan(true)) {
+                if (!enableBackgroundScan(true)) {
                     handlePnoFailError();
                 }
-            } else {
-               mWifiNative.enableBackgroundScan(false);
             }
         }
         if (DBG) log("handleScreenStateChanged Exit: " + screenOn);
@@ -6486,7 +6484,7 @@ public class WifiStateMachine extends StateMachine {
                          // Hence issue PNO SCAN if authentication fails
                          // and LCD is off.
                         if (!mIsScanOngoing) {
-                            if (!mWifiNative.enableBackgroundScan(true)) {
+                            if (!enableBackgroundScan(true)) {
                                 handlePnoFailError();
                             }
                         }
@@ -8153,7 +8151,7 @@ public class WifiStateMachine extends StateMachine {
                      * cleared
                      */
                     if (!mIsScanOngoing) {
-                        if (!mWifiNative.enableBackgroundScan(true)) {
+                        if (!enableBackgroundScan(true)) {
                             handlePnoFailError();
                         }
                     }
@@ -8295,7 +8293,7 @@ public class WifiStateMachine extends StateMachine {
                 case WifiMonitor.SCAN_RESULTS_EVENT:
                     /* Re-enable background scan when a pending scan result is received */
                     if (mEnableBackgroundScan && mIsScanOngoing) {
-                        if (!mWifiNative.enableBackgroundScan(true)) {
+                        if (!enableBackgroundScan(true)) {
                             handlePnoFailError();
                         }
                     }
@@ -8318,7 +8316,7 @@ public class WifiStateMachine extends StateMachine {
                                     ++mPeriodicScanToken, 0), mSupplicantScanIntervalMs);
                     } else if (mEnableBackgroundScan && !mP2pConnected.get() &&
                                (mWifiConfigStore.getConfiguredNetworks().size() != 0)) {
-                        if (!mWifiNative.enableBackgroundScan(true)) {
+                        if (!enableBackgroundScan(true)) {
                             handlePnoFailError();
                         } else {
                             if (DBG) log("Stop periodic scan on PNO success");
