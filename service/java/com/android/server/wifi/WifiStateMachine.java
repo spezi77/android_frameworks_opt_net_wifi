@@ -1155,7 +1155,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiPno
         mP2pSupported = mContext.getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_WIFI_DIRECT);
 
-        mWifiNative = new WifiNative(mInterfaceName, mContext);
+        mWifiNative = new WifiNative(mInterfaceName);
         mWifiConfigStore = new WifiConfigStore(context,this,  mWifiNative);
         mWifiAutoJoinController = new WifiAutoJoinController(context, this,
                 mWifiConfigStore, mWifiConnectionStatistics, mWifiNative);
@@ -2427,7 +2427,9 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiPno
                 mWifiConfigStore.enableAllNetworks();
             }
         }
-        boolean ret = mWifiNative.enableBackgroundScan(enable);
+        List<WifiNative.PnoNetworkPriority> pnoList =
+                mWifiConfigStore.retrievePnoNetworkPriorityList(enable);
+        boolean ret = mWifiNative.enableBackgroundScan(enable, pnoList);
         if (ret) {
             mLegacyPnoEnabled = enable;
         } else {
@@ -7728,19 +7730,21 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiPno
                                 mContext.getSystemService(Context.TELEPHONY_SERVICE);
                         if (tm != null) {
                             int subId = SubscriptionManager.getDefaultSubId();
+                            int slotId = tm.getDefaultSim();
 
                             if (targetWificonfiguration != null && targetWificonfiguration.SIMNum > 0 &&
                                     tm.getDefault().getPhoneCount() >= 2) {
                                 int[] subIds = SubscriptionManager.getSubId(targetWificonfiguration.SIMNum - 1);
                                 if (subIds != null) {
                                     subId = subIds[0];
+                                    slotId = SubscriptionManager.getSlotId(subId);
                                 }
                             }
 
                             String imsi = tm.getSubscriberId(subId);
                             String mccMnc = "";
 
-                            if (tm.getSimState(subId) == TelephonyManager.SIM_STATE_READY)
+                            if (tm.getSimState(slotId) == TelephonyManager.SIM_STATE_READY)
                                  mccMnc = tm.getSimOperator(subId);
 
                             String identity = buildIdentity(eapMethod, imsi, mccMnc);
@@ -8411,9 +8415,17 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiPno
             if (mnc.length() == 2)
                 mnc = "0" + mnc;
         } else {
-            // extract mcc & mnc from IMSI, assume mnc size is 3
+            // extract mcc & mnc from IMSI, assume mnc size is 3 if in this list, 2 otherwise
+            String ThreeDigitMnc[] = {"302", "310", "311", "312", "313", "314", "315", "316", "334", "348"};
+
             mcc = imsi.substring(0, 3);
             mnc = imsi.substring(3, 6);
+
+            if (!Arrays.asList(ThreeDigitMnc).contains(mcc))
+                mnc = mnc.substring(0, 2);
+
+            if (mnc.length() == 2)
+                mnc = "0" + mnc;
         }
 
         return prefix + imsi + "@wlan.mnc" + mnc + ".mcc" + mcc + ".3gppnetwork.org";
